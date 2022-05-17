@@ -1,59 +1,75 @@
-#ifndef HOLBERTON_H
-#define HOLBERTON_H
+#ifndef MAIN_H
+#define MAIN_H
 
-#include <stdarg.h> /* va_list */
-
-#include <stdlib.h> /* malloc, free */
-
-#include <unistd.h> /* write */
+#include <stdarg.h>
 
 
-
-/* helper functions */
-
-char* (*get_func(char i))(va_list);
-
-char *create_buffer(void);
-
-void write_buffer(char *buffer, int len, va_list list);
-
-char *_strcpy(char *dest, char *src);
-
-int _strlen(char *s);
-
-
-
-/* printf functions */
 
 int _printf(const char *format, ...);
 
-char *print_s(va_list list);
+int pull_print(char c, va_list *ap);
 
-char *print_c(va_list list);
 
-char *print_d(va_list list);
 
-char *itob(va_list list);
+int _putchar(char);
 
-char *rot13(va_list list);
+int buffer(char a, char *s);
 
-char *rev_string(va_list list);
+int p_bin(unsigned int num);
 
-char *itoOctal(va_list list);
+int exponent(int x, int y);
+
+int p_int(int);
+
+int p_string(char *);
+
+int p_hexstring(char *);
+
+int p_rev(char *s);
+
+int p_hexcap(unsigned int num);
+
+int p_octal(unsigned int num);
+
+int p_uint(unsigned int num);
+
+int p_hex(unsigned int num);
+
+
+
+int mkstring(va_list *);
+
+int mkchar(va_list *);
+
+int mkint(va_list *);
+
+int mkbin(va_list *);
+
+int mkhex(va_list *);
+
+int mkhexcap(va_list *);
+
+int mkoctal(va_list *);
+
+int mkhexstring(va_list *);
+
+int mkunsigned(va_list *);
 
 /**
- *  * struct types - struct
+ *  * struct flag -flag object
  *
- *   * @id: identifier of type to print (e.g. c means char)
+ *   * @letter: flag char
  *
- *    * @func: ptr to functions that print according to identifier (e.g. print_c)
+ *    * @prnt: print function pointer
+ *
+ *     * Descriptions: contains flag letter and corresponding print function
  */
 
-typedef struct types
+typedef struct flag
 {
-	char id;
-	char* (*func)(va_list);
+	char letter;
+	int (*prnt)(va_list *);
 
-} print;
+} find_flag;
 
 #endif
