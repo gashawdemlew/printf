@@ -3,7 +3,7 @@
 /**
  * _printf - print string as printf
  * @format: number of arguments
- * Return: void
+ * Return: Integer, number of character in the string
  */
 
 int _printf(const char *format, ...)
