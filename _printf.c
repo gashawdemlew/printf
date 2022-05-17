@@ -92,6 +92,13 @@ int _printf(const char *format, ...)
 						buffer[len++] = '\0';
 						total_len++;
 					}
+					if (format[i] == 's' && str[0] == '\0')
+					{
+						len = check_buffer_overflow(buffer, len);
+						buffer[len++] = '\0';
+						total_len++;
+					}
+
 					j = 0;
 					while (str[j] != '\0')
 					{
