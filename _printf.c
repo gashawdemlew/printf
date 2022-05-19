@@ -1,121 +1,200 @@
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include "main.h"
 
 /**
- * check_buffer_overflow - if writing over buffer space,
- *   * print everything then revert length back to 0 to write at buffer start
+ *  * _printf - produces output according to a format
  *
- *    * @buffer: buffer holding string to print
+ *   * @format: The specified format
  *
- *     * @len: position in buffer
+ *    *
  *
- *      * Return: length position
- */
-
-int check_buffer_overflow(char *buffer, int len)
-{
-	if (len > 1020)
-	{
-		write(1, buffer, len);
-		len = 0;
-	}
-
-	return (len);
-}
-
-/**
- *  * _printf - mini printf version
- *
- *   * @format: initial string with all identifiers
- *
- *    * Return: strings with identifiers expanded
+ *     * Return: The number of characters that were printed
  */
 
 int _printf(const char *format, ...)
 {
-	int len = 0, total_len = 0, i = 0, j = 0;
-	va_list list;
-	char *buffer, *str;
-	char* (*f)(va_list);
+	int i = 0, tmp, processing_escape = FALSE, error = 1, last_token;
+	fmt_info_t fmt_info;
+	va_list args;
 
-	if (format == NULL)
+	if (!format || (format[0] == '%' && format[1] == '\0'))
 		return (-1);
 
-	buffer = create_buffer();
-	if (buffer == NULL)
-		return (-1);
+	va_start(args, format);
+	write_to_buffer(0, -1);
 
-	va_start(list, format);
-	while (format[i] != '\0')
+	for (i = 0; format && *(format + i) != '\0'; i++)
 	{
-		if (format[i] != '%') /* copy format into buffer until '%' */
+		if (processing_escape)
 		{
-			len = check_buffer_overflow(buffer, len);
-			buffer[len++] = format[i++];
-			total_len++;
+			tmp = read_format_info(format + i, args, &fmt_info, &last_token);
+			processing_escape = FALSE;
+			set_format_error(format, &i, tmp, last_token, &error);
+
+			if (is_specifier(fmt_info.spec))
+				write_format(&args, &fmt_info);
+
+			i += (is_specifier(fmt_info.spec) ? tmp : 0);
+
 		}
-		else /* if %, find function */
+		else
 		{
-			i++;
-			if (format[i] == '\0') /* handle single ending % */
-			{
-				va_end(list);
-				free(buffer);
-				return (-1);
-			}
-			if (format[i] == '%') /* handle double %'s */
-			{
-				len = check_buffer_overflow(buffer, len);
-				buffer[len++] = format[i];
-				total_len++;
-			}
+			if (*(format + i) == '%')
+				processing_escape = TRUE;
 			else
-			{
-				f = get_func(format[i]); /* grab function */
-				if (f == NULL)  /* handle fake id */
-				{
-					len = check_buffer_overflow(buffer, len);
-					buffer[len++] = '%'; total_len++;
-					buffer[len++] = format[i]; total_len++;
-				}
-				else /* return string, copy to buffer */
-				{
-					str = f(list);
-					if (str == NULL)
-					{
-						va_end(list);
-						free(buffer);
-						return (-1);
-					}
-					if (format[i] == 'c' && str[0] == '\0')
-					{
-						len = check_buffer_overflow(buffer, len);
-						buffer[len++] = '\0';
-						total_len++;
-					}
-					if (format[i] == 's' && str[0] == '\0')
-					{
-						len = check_buffer_overflow(buffer, len);
-						buffer[len++] = '\0';
-						total_len++;
-					}
-
-					j = 0;
-					while (str[j] != '\0')
-					{
-						len = check_buffer_overflow(buffer, len);
-						buffer[len++] = str[j];
-						total_len++; j++;
-					}
-					free(str);
-
-				}
-
-			} i++;
-
+				_putchar(*(format + i));
 		}
+
 	}
 
-	write_buffer(buffer, len, list);
+	write_to_buffer(0, 1);
+	va_end(args);
+	return (error <= 0 ? error : write_to_buffer('\0', -2));
+}
 
-	return (total_len);
+/**
+ *  * write_format - Writes data formatted against some parameters
+ *
+ *   * @args_list: The arguments list
+ *
+ *    * @fmt_info: The format info parameters that were read
+ */
+
+void write_format(va_list *args_list, fmt_info_t *fmt_info)
+{
+	int i;
+	spec_printer_t spec_printers[] = {
+		{'%', convert_fmt_percent},
+		{'p', convert_fmt_p},
+		{'c', convert_fmt_c},
+		{'s', convert_fmt_s},
+		{'d', convert_fmt_di},
+		{'i', convert_fmt_di},
+		{'X', convert_fmt_xX},
+		{'x', convert_fmt_xX},
+		{'o', convert_fmt_o},
+		{'u', convert_fmt_u},
+
+		/* #begin custom specifiers */
+		{'b', convert_fmt_b},
+		{'R', convert_fmt_R},
+		{'r', convert_fmt_r},
+		{'S', convert_fmt_S},
+		/* #end */
+
+		{'F', convert_fmt_fF},
+		{'f', convert_fmt_fF},
+	};
+
+	for (i = 0; i < 23 && spec_printers[i].spec != '\0'; i++)
+	{
+		if (fmt_info->spec == spec_printers[i].spec)
+		{
+			spec_printers[i].print_arg(args_list, fmt_info);
+			break;
+		}
+	}
+}
+
+/**
+ *  * _putstr - writes the given string to the buffer
+ *
+ *   * @str: The string to write
+ *
+ *    *
+ *
+ *     * Return: On success 1.
+ *
+ *      * On error, -1 is returned, and errno is set appropriately.
+ */
+
+int _putstr(char *str)
+{
+	int i, out;
+
+	for (i = 0; str && *(str + i) != 0; i++)
+		out = _putchar(*(str + i));
+
+	return (out);
+}
+
+/**
+ *  * _putchar - writes the character c to the buffer
+ *
+ *   * @c: The character to print
+ *
+ *    *
+ *
+ *     * Return: On success 1.
+ *
+ *      * On error, -1 is returned, and errno is set appropriately.
+ */
+
+int _putchar(char c)
+{
+	return (write_to_buffer(c, 0));
+}
+
+/**
+ *  * write_to_buffer - Writes a char to the buffer based on an action code
+ *
+ *   * @c: The character to write
+ *
+ *    * @action: The action to perform (
+ *
+ *     * -1-> reset the static variables
+ *
+ *      * 0-> write char to buffer
+ *
+ *       * 1-> don't write character to buffer but empty buffer onto stdout
+ *
+ *        * -2-> the number of characters written to stdout)
+ *
+ *         *
+ *
+ *          * Return: On success 1.
+ *
+ *           * On error, -1 is returned, and errno is set appropriately.
+ */
+
+int write_to_buffer(char c, char action)
+{
+	static int i;
+	static int chars_count;
+	static char buffer[1024];
+	static char out;
+
+	if (i < 1024 && action == 0)
+	{
+		out = chars_count < 1 ? 1 : out;
+		buffer[i] = c;
+		i++;
+		chars_count++;
+	}
+
+	if (i >= 1024 || action == 1)
+	{
+		out = write(1, buffer, i);
+		i = 0;
+		mem_set(buffer, 1024, 0);
+	}
+
+	if (action == -1)
+	{
+		i = 0;
+		chars_count = 0;
+		mem_set(buffer, 1024, 0);
+	}
+
+	if (action == -2)
+	{
+		return (chars_count);
+
+	}
+
+	return (out);
 }
